@@ -59,7 +59,9 @@ class Tracker:
         A_new = 0
         B_new = 0
         for _ in range(self.p):
-            Fp = transforms.RandomAffine(degrees=(-180 / 16, 180 / 16), shear=(-10, 10))(F.unsqueeze(0)).squeeze(0)
+            Fp = transforms.RandomAffine(degrees=(-180 / 16, 180 / 16),
+                                         scale=(0.8, 1.2),
+                                         shear=(-10, 10))(F.unsqueeze(0)).squeeze(0)
             Fp = self._preprocess_box(Fp)
             Fp_ = fft.fft2(Fp)
             A_new += self.Gc_ * torch.conj(Fp_)
