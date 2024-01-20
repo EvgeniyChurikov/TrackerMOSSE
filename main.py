@@ -1,25 +1,22 @@
 import os
 from PIL import Image, ImageDraw
-import torchvision.transforms as transforms
 from tracker import Tracker
 
 
 def main():
     source_dir = 'source_frames'
     output_dir = 'output_frames'
-    top, left = 35, 120
+    left, top, width, height = 675, 350, 120, 140
 
     filenames = os.listdir(source_dir)
-    frame_pil = Image.open(f'{source_dir}/{filenames[0]}').reduce(2).convert('RGB')
-    frame_gray = transforms.Grayscale()(transforms.ToTensor()(frame_pil))[0]
-    tracker = Tracker(frame_gray, top, left, 64, 64, 8, 0.8)
+    frame = Image.open(f'{source_dir}/{filenames[0]}').convert('RGB')
+    tracker = Tracker(frame, top, left, height, width, 8, 0.125, 10)
     for i in range(1, len(filenames)):
-        frame_pil = Image.open(f'{source_dir}/{filenames[i]}').reduce(2).convert('RGB')
-        frame_gray = transforms.Grayscale()(transforms.ToTensor()(frame_pil))[0]
-        new_top, new_left = tracker.next(frame_gray)
-        draw = ImageDraw.Draw(frame_pil)
-        draw.rectangle((new_left, new_top, new_left+64, new_top+64), outline=(255, 0, 0), width=2)
-        frame_pil.save(f'{output_dir}/{filenames[i]}')
+        frame = Image.open(f'{source_dir}/{filenames[i]}').convert('RGB')
+        top, left = tracker.next(frame)
+        draw = ImageDraw.Draw(frame)
+        draw.rectangle((left, top, left+width, top+height), outline=(255, 0, 0), width=2)
+        frame.save(f'{output_dir}/{filenames[i]}')
         print(filenames[i])
 
 
