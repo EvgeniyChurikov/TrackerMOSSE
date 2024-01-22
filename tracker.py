@@ -60,8 +60,10 @@ class Tracker:
         A_new = 0
         B_new = 0
         angles = [5, -5, 10, -10, 20, -20, 30, -30, 45, -45, -60, 60]
+        blurs = [(3, 0.2), (5, 2), (3, 1), (7, 3), (5, 2)]
         shift = [[6, 6], [-6, 6], [6, -6], [-6, -6]]
         angles_idx = torch.randint(len(angles), (self.p,))
+        blurs_idx = torch.randint(len(blurs), (self.p,))
         shift_idx = torch.randint(len(shift), (self.p,))
         scales = torch.FloatTensor(self.p).uniform_(0.8, 1.2)
         for i in range(self.p):
@@ -69,7 +71,10 @@ class Tracker:
                         angle=angles[angles_idx[i]],
                         translate=[0, 0],
                         scale=scales[i],
-                        shear=shift[shift_idx[i]]).squeeze(0)
+                        shear=shift[shift_idx[i]])
+            Fp = transforms.GaussianBlur(
+                kernel_size=blurs[blurs_idx[i]][0],
+                sigma=blurs[blurs_idx[i]][1])(Fp).squeeze(0)
             Fp = self._preprocess_box(Fp)
             Fp_ = fft.fft2(Fp)
             A_new += self.Gc_ * torch.conj(Fp_)
