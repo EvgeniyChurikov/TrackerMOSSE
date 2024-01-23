@@ -14,6 +14,7 @@ class Tracker:
         self.p = p
         self.nu = nu
         self.sigma = sigma
+        self.k = 0.04
         self.A = torch.zeros(3, height, width, dtype=torch.complex64)
         self.B = torch.zeros(3, height, width, dtype=torch.complex64)
         Gc = self._make_gaussian(self.height, self.width, self.sigma)
@@ -45,9 +46,9 @@ class Tracker:
 
     @staticmethod
     def _get_shift(tensor):
-        idx_flat = torch.argmax(tensor)
-        shift_y = idx_flat.item() // tensor.shape[1] - tensor.shape[0] // 2
-        shift_x = idx_flat.item() % tensor.shape[1] - tensor.shape[1] // 2
+        idx_flat = torch.argmax(tensor).item() % (tensor.shape[1] * tensor.shape[2])
+        shift_y = idx_flat // tensor.shape[2] - tensor.shape[1] // 2
+        shift_x = idx_flat % tensor.shape[2] - tensor.shape[2] // 2
         return shift_y, shift_x
 
     def _get_box(self, frame_pt):
@@ -65,23 +66,26 @@ class Tracker:
 
     def _train(self, F, nu):
         _, height, width = F.shape
-        A_new = torch.zeros(3, height, width, dtype=torch.complex64)
-        B_new = torch.zeros(3, height, width, dtype=torch.complex64)
+        A_new = torch.zeros(3, 3, height, width, dtype=torch.complex64)
+        B_new = torch.zeros(3, 3, height, width, dtype=torch.complex64)
         angles, blurs, shifts = self._generate_params()
-        scales = torch.FloatTensor(self.p).uniform_(0.8, 1.2)
+        scales = [1.0 - self.k,
+                  1.0,
+                  1.0 + self.k]
         for i in range(self.p):
-            Fp = affine(F,
-                        angle=angles[i],
-                        translate=[0, 0],
-                        scale=scales[i],
-                        shear=shifts[i])
-            Fp = transforms.GaussianBlur(
-                kernel_size=blurs[i][0],
-                sigma=blurs[i][1])(Fp)
-            Fp = self._preprocess_box(Fp)
-            Fp_ = fft.fft2(Fp)
-            A_new += self.Gc_ * torch.conj(Fp_)
-            B_new += Fp_ * torch.conj(Fp_)
+            for j in range(3):
+                Fp = affine(F,
+                            angle=angles[i],
+                            translate=[0, 0],
+                            scale=scales[j],
+                            shear=shifts[i])
+                Fp = transforms.GaussianBlur(
+                    kernel_size=blurs[i][0],
+                    sigma=blurs[i][1])(Fp)
+                Fp = self._preprocess_box(Fp)
+                Fp_ = fft.fft2(Fp)
+                A_new[j] += self.Gc_ * torch.conj(Fp_)
+                B_new[j] += Fp_ * torch.conj(Fp_)
         self.A = nu * A_new + (1 - nu) * self.A
         self.B = nu * B_new + (1 - nu) * self.B
 
@@ -91,7 +95,7 @@ class Tracker:
         F_ = fft.fft2(F)
         W_ = self.A / (self.B + 1E-8)
         G_ = W_ * F_
-        G = torch.sum(fft.ifft2(G_).real, dim=0)
+        G = torch.sum(fft.ifft2(G_).real, dim=1)
         shift_y, shift_x = self._get_shift(G)
         self.top += shift_y
         self.left += shift_x
