@@ -15,8 +15,8 @@ class Tracker:
         self.nu = nu
         self.sigma = sigma
         self.k = 0.04
-        self.A = torch.zeros(3, height, width, dtype=torch.complex64)
-        self.B = torch.zeros(3, height, width, dtype=torch.complex64)
+        self.A = torch.zeros(3, 3, height, width, dtype=torch.complex64)
+        self.B = torch.zeros(3, 3, height, width, dtype=torch.complex64)
         Gc = self._make_gaussian(self.height, self.width, self.sigma)
         Gc = (Gc - Gc.min()) / (Gc.max() - Gc.min())
         self.Gc_ = fft.fft2(Gc)
