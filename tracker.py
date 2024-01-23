@@ -2,6 +2,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms.functional import affine
 import torch.fft as fft
+import random
 
 
 class Tracker:
@@ -56,26 +57,27 @@ class Tracker:
         std, mean = torch.std_mean(F, dim=(-2, -1))
         return ((F - mean[:, None, None]) / (std[:, None, None] + 1E-8)) * self.mask
 
+    def _generate_params(self):
+        angles = random.choices([5, -5, 10, -10, 20, -20, 30, -30, 45, -45, -60, 60], k=self.p)
+        blurs = random.choices([(3, 0.2), (3, 1), (5, 2), (7, 3)], k=self.p)
+        shifts = random.choices([[6, 6], [-6, 6], [6, -6], [-6, -6]], k=self.p)
+        return angles, blurs, shifts
+
     def _train(self, F, nu):
         _, height, width = F.shape
         A_new = torch.zeros(3, height, width, dtype=torch.complex64)
         B_new = torch.zeros(3, height, width, dtype=torch.complex64)
-        angles = [5, -5, 10, -10, 20, -20, 30, -30, 45, -45, -60, 60]
-        blurs = [(3, 0.2), (3, 1), (5, 2), (7, 3)]
-        shift = [[6, 6], [-6, 6], [6, -6], [-6, -6]]
-        angles_idx = torch.randint(len(angles), (self.p,))
-        blurs_idx = torch.randint(len(blurs), (self.p,))
-        shift_idx = torch.randint(len(shift), (self.p,))
+        angles, blurs, shifts = self._generate_params()
         scales = torch.FloatTensor(self.p).uniform_(0.8, 1.2)
         for i in range(self.p):
             Fp = affine(F,
-                        angle=angles[angles_idx[i]],
+                        angle=angles[i],
                         translate=[0, 0],
                         scale=scales[i],
-                        shear=shift[shift_idx[i]])
+                        shear=shifts[i])
             Fp = transforms.GaussianBlur(
-                kernel_size=blurs[blurs_idx[i]][0],
-                sigma=blurs[blurs_idx[i]][1])(Fp)
+                kernel_size=blurs[i][0],
+                sigma=blurs[i][1])(Fp)
             Fp = self._preprocess_box(Fp)
             Fp_ = fft.fft2(Fp)
             A_new += self.Gc_ * torch.conj(Fp_)
