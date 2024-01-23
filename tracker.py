@@ -61,7 +61,7 @@ class Tracker:
         A_new = torch.zeros(3, height, width, dtype=torch.complex64)
         B_new = torch.zeros(3, height, width, dtype=torch.complex64)
         angles = [5, -5, 10, -10, 20, -20, 30, -30, 45, -45, -60, 60]
-        blurs = [(3, 0.2), (5, 2), (3, 1), (7, 3), (5, 2)]
+        blurs = [(3, 0.2), (3, 1), (5, 2), (7, 3)]
         shift = [[6, 6], [-6, 6], [6, -6], [-6, -6]]
         angles_idx = torch.randint(len(angles), (self.p,))
         blurs_idx = torch.randint(len(blurs), (self.p,))
