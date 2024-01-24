@@ -17,6 +17,8 @@ class Tracker:
         self.k = 0.04
         self.A = torch.zeros(3, 3, height, width, dtype=torch.complex64)
         self.B = torch.zeros(3, 3, height, width, dtype=torch.complex64)
+        self.A0 = torch.zeros(3, 3, height, width, dtype=torch.complex64)
+        self.B0 = torch.zeros(3, 3, height, width, dtype=torch.complex64)
         Gc = self._make_gaussian(self.height, self.width, self.sigma)
         Gc = (Gc - Gc.min()) / (Gc.max() - Gc.min())
         self.Gc_ = fft.fft2(Gc)
@@ -24,6 +26,8 @@ class Tracker:
         frame_pt = transforms.ToTensor()(frame)
         F = self._get_box(frame_pt)
         self._train(F, 1.0)
+        self.A0 = self.A.clone().detach()
+        self.B0 = self.B.clone().detach()
 
     @staticmethod
     def _make_mask(height, width):
@@ -86,8 +90,8 @@ class Tracker:
                 Fp_ = fft.fft2(Fp)
                 A_new[j] += self.Gc_ * torch.conj(Fp_)
                 B_new[j] += Fp_ * torch.conj(Fp_)
-        self.A = nu * A_new + (1 - nu) * self.A
-        self.B = nu * B_new + (1 - nu) * self.B
+        self.A = nu * A_new + (1 - nu) / 2 * (self.A + self.A0)
+        self.B = nu * B_new + (1 - nu) / 2 * (self.B + self.B0)
 
     def _update_box(self, frame_pt):
         F = self._get_box(frame_pt)
